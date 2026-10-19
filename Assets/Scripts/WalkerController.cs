@@ -1,41 +1,71 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+
 public class WalkerController : MonoBehaviour
 {
-    private Rigidbody2D rb;
-    private SpriteRenderer spriteRenderer;
-    private InputAction moveAction;
-
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 6f;
 
+    [Header("Jump")]
+    [SerializeField] private float jumpVelocity = 15f;
+    [SerializeField] private Transform groundCheck;
+    [SerializeField] private float groundCheckRadius = 0.15f;
+    [SerializeField] private LayerMask groundLayer;
+
+    private InputAction jumpAction;
+    private bool jumpRequested;
+    private bool isGrounded;
+
+    private Rigidbody2D rb;
+    private SpriteRenderer spriteRenderer;
+    private InputAction moveAction;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
-        //InputSystem.actions -> covers the entire user interactions
         moveAction = InputSystem.actions.FindAction("Move");
-       
+        jumpAction = InputSystem.actions.FindAction("Jump");
+        Debug.Log($"Awake: rb={rb != null}, sr={spriteRenderer != null}, " +
+                  $"move={moveAction != null}");
     }
 
     private float moveInput;
+
     void Update()
     {
-        // move on horizontal axis
         moveInput = moveAction.ReadValue<Vector2>().x;
-
-        //if we move
         if (moveInput != 0f)
         {
-            //
             spriteRenderer.flipX = moveInput > 0f;
         }
-       
+
+        if (jumpAction.WasPressedThisFrame())
+        {
+            jumpRequested = true;
+        }
     }
+
     void FixedUpdate()
     {
-        // its gonna move it move it
+        isGrounded = Physics2D.OverlapCircle(
+            groundCheck.position, groundCheckRadius, groundLayer) != null;
+
         rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
+
+        if (jumpRequested && isGrounded)
+        {
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpVelocity);
+        }
+
+        jumpRequested = false;
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        if (groundCheck == null) return;
+
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
     }
 }
